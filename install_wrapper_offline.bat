@@ -9,7 +9,7 @@ title Wrapper: Offline Installer [Initializing...]
 ::::::::::::::::::::
 
 :: Stop commands from spamming stuff, cleans up the screen
-@echo off && cls
+@echo on && cls
 
 :: Lets variables work or something idk im not a nerd
 SETLOCAL ENABLEDELAYEDEXPANSION
@@ -105,6 +105,12 @@ title Wrapper: Offline Installer
 :cls
 cls
 
+if exist "%tmp%\disclaimer.txt" ( goto standard
+) else (
+goto disclaimer
+)
+
+
 :disclaimer
 echo Wrapper: Offline is a project to preserve the original GoAnimate flash-based themes.
 echo We believe they should be archived for others to use and learn about in the future.
@@ -136,7 +142,7 @@ goto disclaimacceptretry
 :disclaimaccepted
 echo: 
 echo Sorry for all the legalese, let's get back on track.
-echo You've accepted the disclaimer. To reread it, remove this file.>%tmp%\WOdisclaimer.txt
+echo You've accepted the disclaimer. To reread it, remove this file. >> %tmp%\disclaimer.txt
 PING -n 4 127.0.0.1>nul
 echo:
 
@@ -156,8 +162,7 @@ echo:
 
 set /p CHOICE=Choice:
 if "!choice!"=="0" goto exit
-if "!choice!"=="1" goto downloadoptions
-:: funni options
+if "!choice!"=="1" goto download_options
 if "!choice!"=="43" echo OH MY GOD. FOURTY THREE CHARS. NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO & goto wrapperidle
 if "!choice!"=="69" echo nice & goto wrapperidle
 if /i "!choice!"=="benson" echo watch benson on youtube & goto wrapperidle
@@ -173,7 +178,7 @@ if /i "!choice!"=="spark" echo WHY DID SOMEONE FUCK UP THE LAUNCHER? & goto wrap
 if /i "!choice!"=="l33t" echo nice l33t video & goto wrapperidle
 echo Time to choose. && goto wrapperidle
 
-:downloadoptions
+:download_options
 cls
 echo Press 1 if you would like to install the latest build of 1.3.x. ^(Default^)
 echo Press 2 if you would like to install 1.3.0 Build 72. ^(LTS, no updates^)
@@ -182,6 +187,7 @@ echo:
 set /p DLCHOICE=Choice: 
 if "!dlchoice!"=="1" ( goto download13x )
 if "!dlchoice!"=="2" ( goto download13072 )
+goto dlchoiceretry
 
 :download13x
 cls
@@ -190,7 +196,6 @@ pushd "%~dp0..\"
 echo Cloning the latest version of the repository from GitHub...
 echo:
 call git clone https://github.com/Wrapper-Offline/wrapper-offline.git --recursive
-set WOPATH=wrapper-offline
 goto manualreset
 
 :download13072
@@ -199,7 +204,7 @@ title Wrapper: Offline Installer [Downloading repository...]
 echo Downloading the repository for 1.3.0 Build 72 through PowerShell...
 echo ^(NOTE: DO NOT CLOSE POWERSHELL OR IT WILL FAIL^!^)
 echo:
-start powershell -Command "Invoke-WebRequest https://github.com/Wrapper-Offline/wrapper-offline/archive/refs/tags/1.2.3-Final-Build.zip -OutFile %~dp0..\wrapper-offline.zip"
+start powershell Command "Invoke-WebRequest https://github.com/Wrapper-Offline/wrapper-offline/archive/refs/tags/1.2.3-Final-Build.zip -OutFile %~dp0..\wrapper-offline.zip"
 tasklist /FI "IMAGENAME eq powershell.exe" 2>NUL | find /I /N "powershell.exe">NUL
 if "%ERRORLEVEL%"=="0" (
 	echo:>nul
@@ -225,6 +230,7 @@ if "%ERRORLEVEL%"=="0" (
 :: I'm doing this to get around the .gitignore problem but this is only for first-time users
 :manualreset
 echo Resetting config.bat...
+set WOPATH="%~dp0..\wrapper-offline"
 del !wopath!\utilities\config.bat
 echo :: Wrapper: Offline Config>> !wopath!\utilities\config.bat
 echo :: This file is modified by settings.bat. It is not organized, but comments for each setting have been added.>> !wopath!\utilities\config.bat
@@ -273,11 +279,11 @@ echo:>> !wopath!\utilities\config.bat
 echo :: Tells settings.bat which port the frontend is hosted on. ^(If changed manually, you MUST also change the value of "SERVER_PORT" to the same value in wrapper\env.json^) Default: 4343>> !wopath!\utilities\config.bat
 echo set PORT=4343>> !wopath!\utilities\config.bat
 echo:>> !wopath!\utilities\config.bat
-echo :: Enables configure_wrapper.bat. Useful for investigating things like problems with Node.js or http-server. Default: n>> !wopath!\utilities\config.bat
-echo set CONFIGURE=n>> !wopath!\utilities\config.bat
+echo :: Automatically restarts the NPM whenever it crashes. Default: y>> !wopath!\utilities\config.bat
+echo set AUTONODE=y>> !wopath!\utilities\config.bat
 echo:>> !wopath!\utilities\config.bat
 echo Resetting imported assets...
-pushd !wopath!\server\store\3a981f5cb2739137
+pushd "!wopath!\server\store\3a981f5cb2739137"
 rd /q /s import
 md import
 pushd import
@@ -290,21 +296,19 @@ echo:>>theme.xml
 echo ^</theme^> >>theme.xml
 popd
 call !wopath!\utilities\7za.exe a "!wopath!\server\store\3a981f5cb2739137\import\import.zip" "!wopath!\server\store\3a981f5cb2739137\import\theme.xml" >nul
-del /q /s !wopath!\utilities\import_these
+rd /q /s !wopath!\utilities\import_these
 md !wopath!\utilities\import_these
 copy "!wopath!\server\store\3a981f5cb2739137\import\theme.xml" "!wopath!\wrapper\_THEMES\import.xml" /y
 echo Moving "disclaimer accepted" text file from temporary system directory to utilities\checks folder...
-copy "%tmp%\WOdisclaimer.txt" "!wopath!\utilities\checks\disclaimer.txt" /y
-del "%tmp%\WOdisclaimer.txt"
+copy "%tmp%\disclaimer.txt" "!wopath!\utilities\checks\disclaimer.txt" /y
 echo Creating quick shortcut in directory where Wrapper was cloned using NirCMD...
 if exist "!wopath!\Wrapper Offline.lnk" ( del "!wopath!\Wrapper Offline.lnk" )
 echo:
+popd ..\..
 pushd wrapper-offline
 call utilities\nircmd\nircmd.exe shortcut "%windir%\System32\cmd.exe /c START '' 'start_wrapper.bat'" "%CD%" "Wrapper Offline" "" "%CD%\wrapper\favicon.ico" "" "" "%CD%\"
-popd
 echo Shortcut created.
 echo:
-cls
 echo The repository has been cloned.
 echo:
 echo The next step is to run "start_wrapper.bat" as admin
@@ -326,7 +330,7 @@ if /i not !ERRORLEVEL!==0 (
 	pause
 ) else (
 	pause
-	start "" "%~dp0..\!wopath!\start_wrapper.bat"
+	start start_wrapper.bat
 	echo:
 	echo The rest of the installer has been launched.
 	echo:
@@ -358,7 +362,7 @@ if "!shortcut!"=="1" (
 	echo:
 )
 start "" "%~dp0..\wrapper-offline"
-pause & exit
+exit
 
 :w_a_t_c_h
 echo watch benson on youtube
